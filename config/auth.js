@@ -1,15 +1,25 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 require('dotenv').config();
 
 // Database setup
-const db = new sqlite3.Database(path.join(__dirname, '..', 'ideas.db'));
+const dbPath = process.env.NODE_ENV === 'production' 
+    ? '/tmp/ideas.db'  // Use /tmp in production (Vercel)
+    : path.join(__dirname, '..', 'ideas.db');
+
+const db = new sqlite3.Database(dbPath);
 
 // Configure session middleware
 const sessionMiddleware = session({
+    store: new SQLiteStore({
+        db: 'sessions.db',
+        dir: process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, '..'),
+        concurrentDB: true
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,

@@ -61,7 +61,11 @@ app.use('/api/ideas', isAuthenticated);
 app.use('/api/tasks', isAuthenticated);
 
 // Database setup
-const db = new sqlite3.Database('ideas.db', (err) => {
+const dbPath = process.env.NODE_ENV === 'production' 
+    ? '/tmp/ideas.db'  // Use /tmp in production (Vercel)
+    : 'ideas.db';
+
+const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error opening database:', err);
         return;
