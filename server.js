@@ -27,17 +27,28 @@ configurePassport(app);
 
 // Authentication Routes
 app.get('/auth/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
+    (req, res, next) => {
+        console.log('Starting Google OAuth flow...');
+        passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+    }
 );
 
 app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login' }),
+    (req, res, next) => {
+        console.log('Received Google OAuth callback');
+        passport.authenticate('google', { 
+            failureRedirect: '/login',
+            failureMessage: true
+        })(req, res, next);
+    },
     (req, res) => {
+        console.log('OAuth successful, user:', req.user);
         res.redirect('/');
     }
 );
 
 app.get('/auth/logout', (req, res) => {
+    console.log('Logging out user:', req.user);
     req.logout(() => {
         res.redirect('/');
     });
