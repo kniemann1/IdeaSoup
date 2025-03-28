@@ -8,6 +8,9 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Trust proxy for secure cookies
+app.set('trust proxy', 1);
+
 // Global error handler
 const errorHandler = (err, req, res, next) => {
     console.error('Error:', err);
@@ -20,10 +23,16 @@ const errorHandler = (err, req, res, next) => {
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
-app.use(sessionMiddleware);
 
-// Configure Passport
+// Session and Passport middleware must be in this order
+app.use(sessionMiddleware);
 configurePassport(app);
+
+// Add a middleware to log all requests
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+});
 
 // Authentication Routes
 app.get('/auth/google',

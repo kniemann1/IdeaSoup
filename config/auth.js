@@ -21,13 +21,15 @@ const sessionMiddleware = session({
         concurrentDB: true
     }),
     secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'lax',
+        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
     },
-    name: 'sessionId' // Add a specific name for the session cookie
+    name: 'sessionId'
 });
 
 // Add session logging middleware
