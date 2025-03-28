@@ -575,19 +575,15 @@ app.post('/api/restore', (req, res, next) => {
 
     // Start a transaction
     db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-
-        // Delete existing ideas and tasks for the user
+        // First, delete existing data
         db.run('DELETE FROM tasks WHERE idea_id IN (SELECT id FROM ideas WHERE user_id = ?)', [req.user.id], (err) => {
             if (err) {
-                db.run('ROLLBACK');
                 next(err);
                 return;
             }
 
             db.run('DELETE FROM ideas WHERE user_id = ?', [req.user.id], (err) => {
                 if (err) {
-                    db.run('ROLLBACK');
                     next(err);
                     return;
                 }
@@ -611,7 +607,6 @@ app.post('/api/restore', (req, res, next) => {
                         idea.updated_at
                     ], function(err) {
                         if (err) {
-                            db.run('ROLLBACK');
                             next(err);
                             return;
                         }
@@ -621,6 +616,7 @@ app.post('/api/restore', (req, res, next) => {
 
                         // Insert tasks for this idea
                         if (idea.tasks && Array.isArray(idea.tasks)) {
+                            let taskCount = 0;
                             idea.tasks.forEach(task => {
                                 db.run(`
                                     INSERT INTO tasks (idea_id, name, description, due_date, status)
@@ -633,30 +629,32 @@ app.post('/api/restore', (req, res, next) => {
                                     task.status
                                 ], (err) => {
                                     if (err) {
-                                        db.run('ROLLBACK');
                                         next(err);
                                         return;
                                     }
+                                    taskCount++;
                                     completedTasks++;
 
-                                    // If all ideas and tasks are processed, commit the transaction
-                                    if (completedIdeas === backupData.ideas.length) {
-                                        db.run('COMMIT', (err) => {
-                                            if (err) {
-                                                next(err);
-                                                return;
-                                            }
-                                            res.json({
-                                                message: 'Backup restored successfully',
-                                                ideasRestored: completedIdeas,
-                                                tasksRestored: completedTasks
-                                            });
+                                    // If all tasks for this idea are done and this is the last idea
+                                    if (taskCount === idea.tasks.length && completedIdeas === backupData.ideas.length) {
+                                        res.json({
+                                            message: 'Backup restored successfully',
+                                            ideasRestored: completedIdeas,
+                                            tasksRestored: completedTasks
                                         });
                                     }
                                 });
                             });
                         } else {
                             completedTasks++;
+                            // If this is the last idea and it has no tasks
+                            if (completedIdeas === backupData.ideas.length) {
+                                res.json({
+                                    message: 'Backup restored successfully',
+                                    ideasRestored: completedIdeas,
+                                    tasksRestored: completedTasks
+                                });
+                            }
                         }
                     });
                 });
