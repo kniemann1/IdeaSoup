@@ -4,7 +4,14 @@ const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
+
+// Create data directory if it doesn't exist
+const dataDir = process.env.NODE_ENV === 'production' ? '/data' : '.';
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
 
 // Database setup
 const dbPath = process.env.NODE_ENV === 'production' 
@@ -18,15 +25,19 @@ const sessionMiddleware = session({
     store: new SQLiteStore({
         db: 'sessions.db',
         dir: process.env.NODE_ENV === 'production' ? '/data' : '.',
-        concurrentDB: true
+        concurrentDB: true,
+        table: 'sessions'
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'lax',
+        domain: process.env.NODE_ENV === 'production' ? 'ideasoup.onrender.com' : undefined
+    },
+    name: 'sessionId'
 });
 
 // Add session logging middleware

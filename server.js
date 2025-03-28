@@ -1,12 +1,19 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 const { configurePassport, sessionMiddleware } = require('./config/auth');
 const passport = require('passport');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// Create data directory if it doesn't exist
+const dataDir = process.env.NODE_ENV === 'production' ? '/data' : '.';
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
 
 // Trust proxy for secure cookies
 app.set('trust proxy', 1);
