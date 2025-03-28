@@ -388,6 +388,8 @@ app.post('/api/ideas/:ideaId/tasks', (req, res, next) => {
             return res.status(404).json({ error: 'Idea not found or access denied' });
         }
 
+        console.log('Found idea:', idea);
+
         // Enable foreign key constraints
         db.run('PRAGMA foreign_keys = ON', (err) => {
             if (err) {
@@ -413,6 +415,7 @@ app.post('/api/ideas/:ideaId/tasks', (req, res, next) => {
                 }
                 console.log('Task inserted successfully, lastID:', this.lastID);
                 
+                // Verify the task was created
                 db.get('SELECT * FROM tasks WHERE id = ?', [this.lastID], (err, row) => {
                     if (err) {
                         console.error('Error fetching created task:', err);
@@ -500,6 +503,18 @@ app.delete('/api/tasks/:taskId', (req, res, next) => {
 
 // Backup and Restore endpoints
 app.get('/api/backup', (req, res, next) => {
+    console.log('Starting backup for user:', req.user.id);
+    
+    // First, let's check if we have any tasks
+    db.all('SELECT COUNT(*) as count FROM tasks WHERE idea_id IN (SELECT id FROM ideas WHERE user_id = ?)', [req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error counting tasks:', err);
+            next(err);
+            return;
+        }
+        console.log('Total tasks found:', rows[0].count);
+    });
+
     // Get all ideas and tasks for the current user
     db.all(`
         SELECT i.*, 
@@ -514,9 +529,12 @@ app.get('/api/backup', (req, res, next) => {
         GROUP BY i.id, i.title, i.description, i.status, i.rating, i.type, i.created_at, i.updated_at
     `, [req.user.id], (err, rows) => {
         if (err) {
+            console.error('Error fetching backup data:', err);
             next(err);
             return;
         }
+
+        console.log('Raw backup data:', JSON.stringify(rows, null, 2));
 
         // Format the data for backup
         const backupData = {
@@ -536,6 +554,10 @@ app.get('/api/backup', (req, res, next) => {
 
                 // Parse task data if it exists and is not null
                 if (row.task_ids && row.task_names && row.task_descriptions && row.task_due_dates && row.task_statuses) {
+                    console.log('Processing tasks for idea:', row.title);
+                    console.log('Task IDs:', row.task_ids);
+                    console.log('Task Names:', row.task_names);
+                    
                     const taskIds = row.task_ids.split(',');
                     const taskNames = row.task_names.split(',');
                     const taskDescriptions = row.task_descriptions.split(',');
@@ -561,6 +583,7 @@ app.get('/api/backup', (req, res, next) => {
             })
         };
 
+        console.log('Final backup data:', JSON.stringify(backupData, null, 2));
         res.json(backupData);
     });
 });
