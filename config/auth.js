@@ -21,13 +21,13 @@ const sessionMiddleware = session({
         concurrentDB: true
     }),
     secret: process.env.SESSION_SECRET,
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         sameSite: 'lax',
-        domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
+        domain: process.env.NODE_ENV === 'production' ? 'ideasoup.onrender.com' : undefined
     },
     name: 'sessionId'
 });
@@ -38,7 +38,8 @@ const sessionLoggingMiddleware = (req, res, next) => {
         id: req.sessionID,
         cookie: req.session.cookie,
         user: req.user,
-        isAuthenticated: req.isAuthenticated()
+        isAuthenticated: req.isAuthenticated(),
+        passport: req.session.passport
     });
     next();
 };
@@ -52,15 +53,19 @@ function configurePassport(app) {
 
     // Serialize user for the session
     passport.serializeUser((user, done) => {
+        console.log('Serializing user:', user.id);
         done(null, user.id);
     });
 
     // Deserialize user from the session
     passport.deserializeUser((id, done) => {
+        console.log('Deserializing user:', id);
         db.get('SELECT * FROM users WHERE id = ?', [id], (err, user) => {
             if (err) {
+                console.error('Error deserializing user:', err);
                 return done(err, null);
             }
+            console.log('Deserialized user:', user);
             done(null, user);
         });
     });

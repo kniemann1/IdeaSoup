@@ -38,7 +38,10 @@ app.use((req, res, next) => {
 app.get('/auth/google',
     (req, res, next) => {
         console.log('Starting Google OAuth flow...');
-        passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+        passport.authenticate('google', { 
+            scope: ['profile', 'email'],
+            prompt: 'select_account'  // Force account selection
+        })(req, res, next);
     }
 );
 
@@ -52,14 +55,25 @@ app.get('/auth/google/callback',
     },
     (req, res) => {
         console.log('OAuth successful, user:', req.user);
-        res.redirect('/');
+        // Ensure session is saved before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+            }
+            res.redirect('/');
+        });
     }
 );
 
 app.get('/auth/logout', (req, res) => {
     console.log('Logging out user:', req.user);
     req.logout(() => {
-        res.redirect('/');
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error destroying session:', err);
+            }
+            res.redirect('/');
+        });
     });
 });
 
