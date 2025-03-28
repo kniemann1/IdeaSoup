@@ -8,7 +8,7 @@ require('dotenv').config();
 
 // Database setup
 const dbPath = process.env.NODE_ENV === 'production' 
-    ? '/tmp/ideas.db'  // Use /tmp in production (Vercel)
+    ? '/data/ideas.db'  // Use persistent storage in production (Render)
     : path.join(__dirname, '..', 'ideas.db');
 
 const db = new sqlite3.Database(dbPath);
@@ -17,7 +17,7 @@ const db = new sqlite3.Database(dbPath);
 const sessionMiddleware = session({
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, '..'),
+        dir: process.env.NODE_ENV === 'production' ? '/data' : '.',
         concurrentDB: true
     }),
     secret: process.env.SESSION_SECRET,
@@ -25,11 +25,8 @@ const sessionMiddleware = session({
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'lax',
-        domain: process.env.NODE_ENV === 'production' ? 'ideasoup.onrender.com' : undefined
-    },
-    name: 'sessionId'
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 });
 
 // Add session logging middleware
@@ -74,9 +71,9 @@ function configurePassport(app) {
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.NODE_ENV === 'production' 
-            ? "https://ideasoup.onrender.com/auth/google/callback"
-            : "http://localhost:3001/auth/google/callback"
+        callbackURL: process.env.NODE_ENV === 'production'
+            ? 'https://ideasoup.onrender.com/auth/google/callback'
+            : 'http://localhost:3001/auth/google/callback'
     },
     async (accessToken, refreshToken, profile, done) => {
         console.log('Google OAuth callback received profile:', {
@@ -85,15 +82,14 @@ function configurePassport(app) {
             displayName: profile.displayName
         });
         try {
-            // Check if user exists
-            db.get('SELECT * FROM users WHERE google_id = ?', [profile.id], (err, existingUser) => {
+            // Get user from database
+            db.get('SELECT * FROM users WHERE google_id = ?', [profile.id], (err, user) => {
                 if (err) {
-                    console.error('Database error checking existing user:', err);
-                    return done(err, null);
+                    return done(err);
                 }
 
-                if (existingUser) {
-                    console.log('Found existing user:', existingUser);
+                if (user) {
+                    console.log('Found existing user:', user);
                     // Update user information
                     db.run(`UPDATE users 
                            SET email = ?, display_name = ?, profile_picture = ? 
@@ -105,7 +101,7 @@ function configurePassport(app) {
                                 return done(err, null);
                             }
                             console.log('Successfully updated user');
-                            return done(null, existingUser);
+                            return done(null, user);
                         }
                     );
                 } else {

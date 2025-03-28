@@ -96,7 +96,7 @@ app.use('/api/tasks', isAuthenticated);
 
 // Database setup
 const dbPath = process.env.NODE_ENV === 'production' 
-    ? '/tmp/ideas.db'  // Use /tmp in production (Vercel)
+    ? '/data/ideas.db'  // Use persistent storage in production (Render)
     : 'ideas.db';
 
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -487,6 +487,168 @@ app.delete('/api/tasks/:taskId', (req, res, next) => {
                 return res.status(404).json({ error: 'Task not found' });
             }
             res.status(204).send();
+        });
+    });
+});
+
+// Backup and Restore endpoints
+app.get('/api/backup', (req, res, next) => {
+    // Get all ideas and tasks for the current user
+    db.all(`
+        SELECT i.*, 
+               GROUP_CONCAT(DISTINCT t.id) as task_ids,
+               GROUP_CONCAT(DISTINCT t.name) as task_names,
+               GROUP_CONCAT(DISTINCT t.description) as task_descriptions,
+               GROUP_CONCAT(DISTINCT t.due_date) as task_due_dates,
+               GROUP_CONCAT(DISTINCT t.status) as task_statuses
+        FROM ideas i
+        LEFT JOIN tasks t ON i.id = t.idea_id
+        WHERE i.user_id = ?
+        GROUP BY i.id
+    `, [req.user.id], (err, rows) => {
+        if (err) {
+            next(err);
+            return;
+        }
+
+        // Format the data for backup
+        const backupData = {
+            version: '1.0',
+            timestamp: new Date().toISOString(),
+            ideas: rows.map(row => {
+                const idea = {
+                    title: row.title,
+                    description: row.description,
+                    status: row.status,
+                    rating: row.rating,
+                    type: row.type,
+                    created_at: row.created_at,
+                    updated_at: row.updated_at,
+                    tasks: []
+                };
+
+                // Parse task data if it exists
+                if (row.task_ids) {
+                    const taskIds = row.task_ids.split(',');
+                    const taskNames = row.task_names.split(',');
+                    const taskDescriptions = row.task_descriptions.split(',');
+                    const taskDueDates = row.task_due_dates.split(',');
+                    const taskStatuses = row.task_statuses.split(',');
+
+                    taskIds.forEach((taskId, index) => {
+                        idea.tasks.push({
+                            name: taskNames[index],
+                            description: taskDescriptions[index],
+                            due_date: taskDueDates[index],
+                            status: taskStatuses[index]
+                        });
+                    });
+                }
+
+                return idea;
+            })
+        };
+
+        res.json(backupData);
+    });
+});
+
+app.post('/api/restore', (req, res, next) => {
+    const backupData = req.body;
+
+    // Validate backup data
+    if (!backupData.version || !backupData.ideas || !Array.isArray(backupData.ideas)) {
+        return res.status(400).json({ error: 'Invalid backup data format' });
+    }
+
+    // Start a transaction
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        // Delete existing ideas and tasks for the user
+        db.run('DELETE FROM tasks WHERE idea_id IN (SELECT id FROM ideas WHERE user_id = ?)', [req.user.id], (err) => {
+            if (err) {
+                db.run('ROLLBACK');
+                next(err);
+                return;
+            }
+
+            db.run('DELETE FROM ideas WHERE user_id = ?', [req.user.id], (err) => {
+                if (err) {
+                    db.run('ROLLBACK');
+                    next(err);
+                    return;
+                }
+
+                // Insert new ideas and tasks
+                let completedIdeas = 0;
+                let completedTasks = 0;
+
+                backupData.ideas.forEach(idea => {
+                    db.run(`
+                        INSERT INTO ideas (user_id, title, description, status, rating, type, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                        req.user.id,
+                        idea.title,
+                        idea.description,
+                        idea.status,
+                        idea.rating,
+                        idea.type,
+                        idea.created_at,
+                        idea.updated_at
+                    ], function(err) {
+                        if (err) {
+                            db.run('ROLLBACK');
+                            next(err);
+                            return;
+                        }
+
+                        const ideaId = this.lastID;
+                        completedIdeas++;
+
+                        // Insert tasks for this idea
+                        if (idea.tasks && Array.isArray(idea.tasks)) {
+                            idea.tasks.forEach(task => {
+                                db.run(`
+                                    INSERT INTO tasks (idea_id, name, description, due_date, status)
+                                    VALUES (?, ?, ?, ?, ?)
+                                `, [
+                                    ideaId,
+                                    task.name,
+                                    task.description,
+                                    task.due_date,
+                                    task.status
+                                ], (err) => {
+                                    if (err) {
+                                        db.run('ROLLBACK');
+                                        next(err);
+                                        return;
+                                    }
+                                    completedTasks++;
+
+                                    // If all ideas and tasks are processed, commit the transaction
+                                    if (completedIdeas === backupData.ideas.length) {
+                                        db.run('COMMIT', (err) => {
+                                            if (err) {
+                                                next(err);
+                                                return;
+                                            }
+                                            res.json({
+                                                message: 'Backup restored successfully',
+                                                ideasRestored: completedIdeas,
+                                                tasksRestored: completedTasks
+                                            });
+                                        });
+                                    }
+                                });
+                            });
+                        } else {
+                            completedTasks++;
+                        }
+                    });
+                });
+            });
         });
     });
 });

@@ -11,13 +11,18 @@
         <header>
             <div class="header-left">
                 <h1>IdeaSoup</h1>
-                <button id="createButton" class="create-button">Create New Project</button>
+                <div class="header-buttons">
+                    <button id="backupButton" class="btn btn-secondary">Backup Data</button>
+                    <button id="restoreButton" class="btn btn-secondary">Restore Data</button>
+                    <input type="file" id="restoreFile" accept=".json" style="display: none;">
+                    <button id="createButton" class="btn btn-primary">New Idea</button>
+                    <button id="logoutButton" class="btn btn-danger">Logout</button>
+                </div>
             </div>
             <div class="header-right">
                 <div id="userProfile" class="user-profile hidden">
                     <img id="userAvatar" src="" alt="User avatar" class="user-avatar">
                     <span id="userName"></span>
-                    <button id="logoutButton" class="logout-button">Logout</button>
                 </div>
                 <div id="loginSection" class="login-section">
                     <button id="loginButton" class="login-button">Login with Google</button>

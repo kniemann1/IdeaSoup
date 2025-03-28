@@ -990,4 +990,84 @@ document.addEventListener('DOMContentLoaded', () => {
         column.appendChild(card);
         sortCardsByRating(column);
     }
+
+    // Backup and Restore functionality
+    document.getElementById('backupButton').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/backup');
+            if (!response.ok) {
+                throw new Error('Failed to create backup');
+            }
+            const backupData = await response.json();
+            
+            // Create a blob and download the file
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ideasoup-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            alert('Backup created successfully!');
+        } catch (error) {
+            console.error('Error creating backup:', error);
+            alert('Failed to create backup. Please try again.');
+        }
+    });
+
+    document.getElementById('restoreButton').addEventListener('click', () => {
+        document.getElementById('restoreFile').click();
+    });
+
+    document.getElementById('restoreFile').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const backupData = JSON.parse(e.target.result);
+                    
+                    // Validate backup data
+                    if (!backupData.version || !backupData.ideas || !Array.isArray(backupData.ideas)) {
+                        throw new Error('Invalid backup file format');
+                    }
+
+                    // Confirm with user
+                    if (!confirm(`This will replace all your current ideas and tasks with the backup data. Are you sure you want to continue?`)) {
+                        return;
+                    }
+
+                    const response = await fetch('/api/restore', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(backupData)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to restore backup');
+                    }
+
+                    const result = await response.json();
+                    alert(`Backup restored successfully! ${result.ideasRestored} ideas and ${result.tasksRestored} tasks restored.`);
+                    
+                    // Refresh the page to show restored data
+                    window.location.reload();
+                } catch (error) {
+                    console.error('Error restoring backup:', error);
+                    alert('Failed to restore backup. Please make sure you selected a valid backup file.');
+                }
+            };
+            reader.readAsText(file);
+        } catch (error) {
+            console.error('Error reading backup file:', error);
+            alert('Failed to read backup file. Please try again.');
+        }
+    });
 }); // End of DOMContentLoaded event listener 
