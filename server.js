@@ -511,7 +511,7 @@ app.get('/api/backup', (req, res, next) => {
         FROM ideas i
         LEFT JOIN tasks t ON i.id = t.idea_id
         WHERE i.user_id = ?
-        GROUP BY i.id
+        GROUP BY i.id, i.title, i.description, i.status, i.rating, i.type, i.created_at, i.updated_at
     `, [req.user.id], (err, rows) => {
         if (err) {
             next(err);
