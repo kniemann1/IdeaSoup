@@ -505,86 +505,61 @@ app.delete('/api/tasks/:taskId', (req, res, next) => {
 app.get('/api/backup', (req, res, next) => {
     console.log('Starting backup for user:', req.user.id);
     
-    // First, let's check if we have any tasks
-    db.all('SELECT COUNT(*) as count FROM tasks WHERE idea_id IN (SELECT id FROM ideas WHERE user_id = ?)', [req.user.id], (err, rows) => {
+    // First, get all ideas for the user
+    db.all('SELECT * FROM ideas WHERE user_id = ?', [req.user.id], (err, ideas) => {
         if (err) {
-            console.error('Error counting tasks:', err);
-            next(err);
-            return;
-        }
-        console.log('Total tasks found:', rows[0].count);
-    });
-
-    // Get all ideas and tasks for the current user
-    db.all(`
-        SELECT i.*, 
-               GROUP_CONCAT(DISTINCT t.id) as task_ids,
-               GROUP_CONCAT(DISTINCT t.name) as task_names,
-               GROUP_CONCAT(DISTINCT t.description) as task_descriptions,
-               GROUP_CONCAT(DISTINCT t.due_date) as task_due_dates,
-               GROUP_CONCAT(DISTINCT t.status) as task_statuses
-        FROM ideas i
-        LEFT JOIN tasks t ON i.id = t.idea_id
-        WHERE i.user_id = ?
-        GROUP BY i.id, i.title, i.description, i.status, i.rating, i.type, i.created_at, i.updated_at
-    `, [req.user.id], (err, rows) => {
-        if (err) {
-            console.error('Error fetching backup data:', err);
+            console.error('Error fetching ideas:', err);
             next(err);
             return;
         }
 
-        console.log('Raw backup data:', JSON.stringify(rows, null, 2));
+        console.log(`Found ${ideas.length} ideas`);
 
-        // Format the data for backup
+        // Get tasks for each idea
         const backupData = {
             version: '1.0',
             timestamp: new Date().toISOString(),
-            ideas: rows.map(row => {
-                const idea = {
-                    title: row.title,
-                    description: row.description,
-                    status: row.status,
-                    rating: row.rating,
-                    type: row.type,
-                    created_at: row.created_at,
-                    updated_at: row.updated_at,
-                    tasks: []
-                };
-
-                // Parse task data if it exists and is not null
-                if (row.task_ids && row.task_names && row.task_descriptions && row.task_due_dates && row.task_statuses) {
-                    console.log('Processing tasks for idea:', row.title);
-                    console.log('Task IDs:', row.task_ids);
-                    console.log('Task Names:', row.task_names);
-                    
-                    const taskIds = row.task_ids.split(',');
-                    const taskNames = row.task_names.split(',');
-                    const taskDescriptions = row.task_descriptions.split(',');
-                    const taskDueDates = row.task_due_dates.split(',');
-                    const taskStatuses = row.task_statuses.split(',');
-
-                    // Only add tasks if we have valid data
-                    if (taskIds.length > 0 && taskIds[0] !== '') {
-                        taskIds.forEach((taskId, index) => {
-                            if (taskId && taskNames[index]) {
-                                idea.tasks.push({
-                                    name: taskNames[index],
-                                    description: taskDescriptions[index] || '',
-                                    due_date: taskDueDates[index] || null,
-                                    status: taskStatuses[index] || 'To Do'
-                                });
-                            }
-                        });
-                    }
-                }
-
-                return idea;
-            })
+            ideas: []
         };
 
-        console.log('Final backup data:', JSON.stringify(backupData, null, 2));
-        res.json(backupData);
+        let processedIdeas = 0;
+
+        ideas.forEach(idea => {
+            // Get tasks for this idea
+            db.all('SELECT * FROM tasks WHERE idea_id = ?', [idea.id], (err, tasks) => {
+                if (err) {
+                    console.error(`Error fetching tasks for idea ${idea.id}:`, err);
+                    return;
+                }
+
+                console.log(`Found ${tasks.length} tasks for idea: ${idea.title}`);
+
+                const ideaData = {
+                    title: idea.title,
+                    description: idea.description,
+                    status: idea.status,
+                    rating: idea.rating,
+                    type: idea.type,
+                    created_at: idea.created_at,
+                    updated_at: idea.updated_at,
+                    tasks: tasks.map(task => ({
+                        name: task.name,
+                        description: task.description || '',
+                        due_date: task.due_date || null,
+                        status: task.status || 'To Do'
+                    }))
+                };
+
+                backupData.ideas.push(ideaData);
+                processedIdeas++;
+
+                // If we've processed all ideas, send the response
+                if (processedIdeas === ideas.length) {
+                    console.log('Final backup data:', JSON.stringify(backupData, null, 2));
+                    res.json(backupData);
+                }
+            });
+        });
     });
 });
 
