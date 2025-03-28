@@ -534,22 +534,27 @@ app.get('/api/backup', (req, res, next) => {
                     tasks: []
                 };
 
-                // Parse task data if it exists
-                if (row.task_ids) {
+                // Parse task data if it exists and is not null
+                if (row.task_ids && row.task_names && row.task_descriptions && row.task_due_dates && row.task_statuses) {
                     const taskIds = row.task_ids.split(',');
                     const taskNames = row.task_names.split(',');
                     const taskDescriptions = row.task_descriptions.split(',');
                     const taskDueDates = row.task_due_dates.split(',');
                     const taskStatuses = row.task_statuses.split(',');
 
-                    taskIds.forEach((taskId, index) => {
-                        idea.tasks.push({
-                            name: taskNames[index],
-                            description: taskDescriptions[index],
-                            due_date: taskDueDates[index],
-                            status: taskStatuses[index]
+                    // Only add tasks if we have valid data
+                    if (taskIds.length > 0 && taskIds[0] !== '') {
+                        taskIds.forEach((taskId, index) => {
+                            if (taskId && taskNames[index]) {
+                                idea.tasks.push({
+                                    name: taskNames[index],
+                                    description: taskDescriptions[index] || '',
+                                    due_date: taskDueDates[index] || null,
+                                    status: taskStatuses[index] || 'To Do'
+                                });
+                            }
                         });
-                    });
+                    }
                 }
 
                 return idea;
