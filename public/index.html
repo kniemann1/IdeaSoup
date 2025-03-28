@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IdeaSoup - Product Idea Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>IdeaSoup</h1>
+                <button id="createButton" class="create-button">Create New Project</button>
+            </div>
+            <div class="header-right">
+                <div id="userProfile" class="user-profile hidden">
+                    <img id="userAvatar" src="" alt="User avatar" class="user-avatar">
+                    <span id="userName"></span>
+                    <button id="logoutButton" class="logout-button">Logout</button>
+                </div>
+                <div id="loginSection" class="login-section">
+                    <button id="loginButton" class="login-button">Login with Google</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="kanban-board">
+            <div class="kanban-column column-todo" data-status="To Do">
+                <div class="column-header">To Do</div>
+                <div class="column-content"></div>
+            </div>
+            <div class="kanban-column column-in-progress" data-status="In Progress">
+                <div class="column-header">In Progress</div>
+                <div class="column-content"></div>
+            </div>
+            <div class="kanban-column column-done" data-status="Done">
+                <div class="column-header">Done</div>
+                <div class="column-content"></div>
+            </div>
+            <div class="kanban-column column-archived" data-status="Archived">
+                <div class="column-header">Archived</div>
+                <div class="column-content"></div>
+            </div>
+        </div>
+
+        <!-- Modal for creating new idea -->
+        <div id="createModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create New Idea</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <form id="ideaForm">
+                    <div class="form-group">
+                        <label for="title">Title:</label>
+                        <input type="text" id="title" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description:</label>
+                        <textarea id="description" name="description" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="rating">Rating (1-100):</label>
+                        <input type="number" id="rating" name="rating" min="1" max="100" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="type">Type:</label>
+                        <select id="type" name="type" required>
+                            <option value="WebApp">Web App</option>
+                            <option value="Software">Software</option>
+                            <option value="Embedded">Embedded</option>
+                            <option value="Physical Product">Physical Product</option>
+                            <option value="Service">Service</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status:</label>
+                        <select id="status" name="status">
+                            <option value="To Do">To Do</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-button">Create Idea</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal for editing idea -->
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Edit Idea</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <form id="editForm">
+                    <input type="hidden" id="editId" name="id">
+                    <div class="form-group">
+                        <label for="editTitle">Title:</label>
+                        <input type="text" id="editTitle" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editDescription">Description:</label>
+                        <textarea id="editDescription" name="description" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRating">Rating (1-100):</label>
+                        <input type="number" id="editRating" name="rating" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="editType">Type:</label>
+                        <select id="editType" name="type" required>
+                            <option value="WebApp">Web App</option>
+                            <option value="Software">Software</option>
+                            <option value="Embedded">Embedded</option>
+                            <option value="Physical Product">Physical Product</option>
+                            <option value="Service">Service</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editStatus">Status:</label>
+                        <select id="editStatus" name="status">
+                            <option value="To Do">To Do</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                    <div class="tasks-section">
+                        <h3>Tasks</h3>
+                        <div class="tasks-list" id="tasksList"></div>
+                        <div class="add-task-form">
+                            <input type="text" id="newTaskName" placeholder="New task name">
+                            <input type="datetime-local" id="newTaskDueDate">
+                            <button type="button" id="addTaskButton" class="add-task-button">Add Task</button>
+                        </div>
+                    </div>
+                    <div class="timestamp-group">
+                        <div class="timestamp-field">
+                            <label>Created:</label>
+                            <span id="editCreatedAt" class="timestamp-value"></span>
+                        </div>
+                        <div class="timestamp-field">
+                            <label>Last Updated:</label>
+                            <span id="editUpdatedAt" class="timestamp-value"></span>
+                        </div>
+                    </div>
+                    <button type="submit" class="submit-button">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html> 
