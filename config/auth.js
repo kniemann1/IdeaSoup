@@ -8,14 +8,14 @@ const fs = require('fs');
 require('dotenv').config();
 
 // Create data directory if it doesn't exist
-const dataDir = process.env.NODE_ENV === 'production' ? '/data' : '.';
+const dataDir = process.env.NODE_ENV === 'production' ? path.join(__dirname, '..') : '.';
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
 // Database setup
 const dbPath = process.env.NODE_ENV === 'production' 
-    ? '/data/ideas.db'  // Use persistent storage in production (Render)
+    ? path.join(__dirname, '..', 'ideas.db')  // Use project root in production (Render)
     : path.join(__dirname, '..', 'ideas.db');
 
 const db = new sqlite3.Database(dbPath);
@@ -24,7 +24,7 @@ const db = new sqlite3.Database(dbPath);
 const sessionMiddleware = session({
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: process.env.NODE_ENV === 'production' ? '/data' : '.',
+        dir: process.env.NODE_ENV === 'production' ? path.join(__dirname, '..') : '.',
         concurrentDB: true,
         table: 'sessions'
     }),

@@ -10,7 +10,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Create data directory if it doesn't exist
-const dataDir = process.env.NODE_ENV === 'production' ? '/data' : '.';
+const dataDir = process.env.NODE_ENV === 'production' ? path.join(__dirname) : '.';
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -103,7 +103,7 @@ app.use('/api/tasks', isAuthenticated);
 
 // Database setup
 const dbPath = process.env.NODE_ENV === 'production' 
-    ? '/data/ideas.db'  // Use persistent storage in production (Render)
+    ? path.join(__dirname, 'ideas.db')  // Use project root in production (Render)
     : 'ideas.db';
 
 const db = new sqlite3.Database(dbPath, (err) => {
